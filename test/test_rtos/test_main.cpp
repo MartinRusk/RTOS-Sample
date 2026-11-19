@@ -65,6 +65,26 @@ rtos::Task<1, 256> peerTask(peerTaskFunction);
 rtos::TaskBase* suspensionTasks[] = {&suspendedTask, &peerTask};
 rtos::Task<1, 256> unregisteredTask(suspendedTaskFunction);
 
+volatile uint8_t selfSuspendProgress;
+volatile bool selfSuspendResult;
+volatile bool resumeSelfResult;
+
+void selfSuspendingTaskFunction();
+rtos::Task<1, 256> selfSuspendingTask(selfSuspendingTaskFunction);
+
+void selfSuspendingTaskFunction() {
+  selfSuspendProgress = 1;
+  selfSuspendResult = rtos::suspend();
+  selfSuspendProgress = 2;
+}
+
+void resumeSelfSuspendingTaskFunction() {
+  resumeSelfResult = rtos::resume(selfSuspendingTask);
+}
+
+rtos::Task<1, 256> selfResumeTask(resumeSelfSuspendingTaskFunction);
+rtos::TaskBase* selfSuspensionTasks[] = {&selfSuspendingTask, &selfResumeTask};
+
 void test_periodic_scheduling_and_deadlines() {
   tasks[0] = &a;
   tasks[1] = &b;
@@ -125,11 +145,29 @@ void test_task_suspend_and_resume() {
   TEST_ASSERT_FALSE(invalidResume);
 }
 
+void test_task_can_suspend_itself() {
+  selfSuspendProgress = 0;
+  selfSuspendResult = false;
+  resumeSelfResult = false;
+  cli();
+  rtos::start(selfSuspensionTasks);
+  TIMSK1 = 0;
+  sei();
+
+  tick();
+
+  TEST_ASSERT_EQUAL_UINT8(2, selfSuspendProgress);
+  TEST_ASSERT_TRUE(selfSuspendResult);
+  TEST_ASSERT_TRUE(resumeSelfResult);
+  TEST_ASSERT_FALSE(rtos::suspend());
+}
+
 void setup() {
   delay(2000);
   UNITY_BEGIN();
   RUN_TEST(test_periodic_scheduling_and_deadlines);
   RUN_TEST(test_task_suspend_and_resume);
+  RUN_TEST(test_task_can_suspend_itself);
   UNITY_END();
 }
 

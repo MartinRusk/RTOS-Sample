@@ -71,6 +71,7 @@ void start(TaskBase* const* tasks, uint8_t count);
 
 // Suspend or resume a registered task. Both require interrupts enabled.
 // Suspension preserves the task context; periodic releases continue while suspended.
+bool suspend();
 bool suspend(TaskBase& task);
 bool resume(TaskBase& task);
 

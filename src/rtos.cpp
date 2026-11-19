@@ -169,6 +169,24 @@ void start(TaskBase* const* tasks, uint8_t count) {
 
 }  // namespace detail
 
+bool suspend() {
+  if (!(SREG & _BV(SREG_I))) {
+    return false;
+  }
+  cli();
+  if (currentTask >= taskCount) {
+    sei();
+    return false;
+  }
+  TaskBase& task = *taskTable[currentTask];
+  if (!task.suspended) {
+    task.suspended = true;
+    rtos_yield();
+  }
+  sei();
+  return true;
+}
+
 bool suspend(TaskBase& task) {
   if (!(SREG & _BV(SREG_I))) {
     return false;

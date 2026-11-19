@@ -36,6 +36,9 @@ context, including a task blocked on a semaphore. Periodic releases continue
 while suspended; releases that occur during an unfinished activation are
 reported as missed deadlines as usual. Suspending or resuming a task takes
 effect immediately through a scheduler invocation.
+Inside a task, `rtos::suspend()` suspends the calling task; it returns `false`
+outside a task or with interrupts disabled. It resumes at that call after
+another task calls `rtos::resume()` for it.
 
 If a task has not returned by its next release, that release is dropped rather
 than queued. `rtos::takeMissedDeadlines()` atomically returns and clears a
