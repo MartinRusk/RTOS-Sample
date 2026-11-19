@@ -16,6 +16,7 @@ struct TaskBase {
   uint16_t period;
   volatile uint16_t remaining;
   volatile bool active;
+  volatile bool suspended;
   SemaphoreBase* volatile waitingOn;
   uint16_t savedStack;
 };
@@ -27,7 +28,7 @@ struct Task : TaskBase {
   static_assert(StackSize >= 96, "Task stack must be at least 96 bytes");
 
   explicit Task(TaskFunction function)
-      : TaskBase{function, stackStorage, StackSize, PeriodMs, PeriodMs, false, nullptr, 0} {}
+      : TaskBase{function, stackStorage, StackSize, PeriodMs, PeriodMs, false, false, nullptr, 0} {}
 
  private:
   uint8_t stackStorage[StackSize];
@@ -67,6 +68,11 @@ class Semaphore : public SemaphoreBase {
 namespace detail {
 void start(TaskBase* const* tasks, uint8_t count);
 }
+
+// Suspend or resume a registered task. Both require interrupts enabled.
+// Suspension preserves the task context; periodic releases continue while suspended.
+bool suspend(TaskBase& task);
+bool resume(TaskBase& task);
 
 template <size_t Count>
 void start(TaskBase* const (&tasks)[Count]) {

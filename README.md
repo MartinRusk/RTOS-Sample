@@ -28,6 +28,15 @@ preempts a lower-priority task at the next tick. Tasks run until they return;
 afterward they wait for their next release. Long-running high-priority tasks
 can starve lower-priority tasks.
 
+Use `rtos::suspend(task)` to stop a registered task from being scheduled and
+`rtos::resume(task)` to make it eligible again. Both functions require
+interrupts enabled and return `false` for an unregistered task or when called
+with interrupts disabled. Suspension preserves the task's current execution
+context, including a task blocked on a semaphore. Periodic releases continue
+while suspended; releases that occur during an unfinished activation are
+reported as missed deadlines as usual. Suspending or resuming a task takes
+effect immediately through a scheduler invocation.
+
 If a task has not returned by its next release, that release is dropped rather
 than queued. `rtos::takeMissedDeadlines()` atomically returns and clears a
 bitmask of affected task indices. The example records this mask in

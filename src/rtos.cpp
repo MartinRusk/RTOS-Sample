@@ -55,13 +55,23 @@ uint16_t selectNext(uint16_t savedStack) {
   }
 
   for (uint8_t i = 0; i < taskCount; ++i) {
-    if (taskTable[i]->active && taskTable[i]->waitingOn == nullptr) {
+    if (taskTable[i]->active && !taskTable[i]->suspended &&
+        taskTable[i]->waitingOn == nullptr) {
       currentTask = i;
       return taskTable[i]->savedStack;
     }
   }
   currentTask = taskCount;
   return idleStack;
+}
+
+bool findTask(const rtos::TaskBase& task) {
+  for (uint8_t i = 0; i < taskCount; ++i) {
+    if (taskTable[i] == &task) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace
@@ -142,6 +152,7 @@ void start(TaskBase* const* tasks, uint8_t count) {
     for (uint8_t i = 0; i < count; ++i) {
       tasks[i]->remaining = tasks[i]->period;
       tasks[i]->active = false;
+      tasks[i]->suspended = false;
       tasks[i]->waitingOn = nullptr;
       tasks[i]->savedStack = initializeStack(*tasks[i]);
     }
@@ -157,6 +168,40 @@ void start(TaskBase* const* tasks, uint8_t count) {
 }
 
 }  // namespace detail
+
+bool suspend(TaskBase& task) {
+  if (!(SREG & _BV(SREG_I))) {
+    return false;
+  }
+  cli();
+  if (!findTask(task)) {
+    sei();
+    return false;
+  }
+  if (!task.suspended) {
+    task.suspended = true;
+    rtos_yield();
+  }
+  sei();
+  return true;
+}
+
+bool resume(TaskBase& task) {
+  if (!(SREG & _BV(SREG_I))) {
+    return false;
+  }
+  cli();
+  if (!findTask(task)) {
+    sei();
+    return false;
+  }
+  if (task.suspended) {
+    task.suspended = false;
+    rtos_yield();
+  }
+  sei();
+  return true;
+}
 
 bool SemaphoreBase::take() {
   if (!(SREG & _BV(SREG_I))) {
